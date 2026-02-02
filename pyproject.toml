@@ -1,0 +1,17 @@
+[project]
+name = "cdrdao-processor"
+version = "0.1.0"
+description = "A tool for processing music CD data ripped with `cdrdao`"
+requires-python = ">=3.14"
+dependencies = [
+    "beautifulsoup4",
+    "lxml",
+    "requests",
+    "python-dotenv",
+    "playwright",
+    "playwright-recaptcha",
+    "standard-aifc",
+    "aiohttp",
+    "pandas",
+    "discid"
+]
