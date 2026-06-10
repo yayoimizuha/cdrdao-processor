@@ -83,16 +83,7 @@ async def generate_cookie_jar():
 
 @dataclass
 class MincSearchResult:
-    title: str
-    artist: str
-    # lyricist: Optional[str]
-    # composer: Optional[str]
-    # arranger: Optional[str]
-    album_name: str
     album_id: int
-    first_product_number: str
-    isrc: Optional[str]
-    detail_id: Optional[str]
 
     async def album_info(self, _cookie_jar: CookieJar):
         async with ClientSession(cookie_jar=_cookie_jar) as _session:
@@ -128,6 +119,19 @@ class MincSearchResult:
                     album_tracks.append(disk_tracks)
                 return album_tracks
 
+
+@dataclass
+class MincSongSearchResult(MincSearchResult):
+    title: str
+    artist: str
+    # lyricist: Optional[str]
+    # composer: Optional[str]
+    # arranger: Optional[str]
+    album_name: str
+    first_disc_number: str
+    isrc: Optional[str]
+    detail_id: Optional[str]
+
     async def jasrac_info(self, _cookie_jar: CookieJar) -> Optional[JasracInfo]:
         if self.detail_id is None:
             return None
@@ -150,8 +154,14 @@ class MincSearchResult:
                         composer.append(name)
                     elif "編曲" in genre.get_text():
                         arranger.append(name)
+                    elif "公編" in genre.get_text():
+                        arranger.append(name)
                 return JasracInfo(jasrac_code, iswc, lyricist, composer, arranger)
 
+@dataclass
+class MincDiscSearchResult(MincSearchResult):
+    album_name: str
+    first_product_number: str
 
 @dataclass
 class JasracInfo:
@@ -174,7 +184,7 @@ class MincAlbumTrack:
     detail_id: Optional[str]
 
 
-async def search_with_isrc(_cookie_jar: CookieJar, isrc: str) -> list[MincSearchResult]:
+async def search_with_isrc(_cookie_jar: CookieJar, isrc: str) -> list[MincSongSearchResult]:
     async with ClientSession(cookie_jar=_cookie_jar) as _session:
         search_url = f"https://www.minc.or.jp/music/list?tr={isrc}&type=search-form-isrc"
         async with _session.get(search_url) as _resp:
@@ -186,12 +196,12 @@ async def search_with_isrc(_cookie_jar: CookieJar, isrc: str) -> list[MincSearch
                 #     list(map(lambda x: tuple(x.split(": ")),
                 #              _row.select_one("td:nth-of-type(4)").decode_contents().split("<br/>")))
                 # )
-                _search_results.append(MincSearchResult(
+                _search_results.append(MincSongSearchResult(
                     title=_row.select_one("td:nth-of-type(2)").decode_contents(),
                     artist=_row.select_one("td:nth-of-type(3)").decode_contents(),
                     album_name=_row.select_one("td:nth-of-type(6)").get_text(strip=True),
                     album_id=int(_row.select_one("td:nth-of-type(6)").find("a")["data-target"]),
-                    first_product_number=_row.select_one("td:nth-of-type(5)").decode_contents().split("/")[0].strip(),
+                    first_disc_number=_row.select_one("td:nth-of-type(5)").decode_contents().split("/")[0].strip(),
                     isrc=_row.select_one("td:nth-of-type(7)").decode_contents().strip(),
                     detail_id=_row.select_one("td:nth-of-type(9)").find("button")["data-href"]
                     if _row.select_one("td:nth-of-type(9)").find("button") is not None else None
@@ -199,9 +209,25 @@ async def search_with_isrc(_cookie_jar: CookieJar, isrc: str) -> list[MincSearch
             return _search_results
 
 
+async def search_with_disc_number(_cookie_jar: CookieJar, disc_number: str) -> list[MincSongSearchResult]:
+    async with ClientSession(cookie_jar=_cookie_jar) as _session:
+        search_url = f"https://www.minc.or.jp/product/list/?dn={disc_number}&type=search-form-diskno"
+        async with _session.get(search_url) as _resp:
+            html_content = await _resp.text()
+            table_html = BeautifulSoup(html_content, 'lxml').select_one("div#cd_product.active  tbody")
+            _search_results = []
+            for _row in table_html.find_all("tr"):
+                _search_results.append(MincDiscSearchResult(
+                    album_name=_row.select_one("td:nth-of-type(4)").get_text(strip=True),
+                    album_id=int(_row.select_one("td:nth-of-type(4)").find("a")["data-target"]),
+                    first_product_number=_row.select_one("td:nth-of-type(2)").get_text(strip=True).split("/")[0].strip()
+                ))
+            return _search_results
+
+
 if __name__ == "__main__":
     cookie_jar = asyncio.run(generate_cookie_jar())
-    minc_search_results = asyncio.run(search_with_isrc(cookie_jar, "JPA602100077"))
+    minc_search_results = asyncio.run(search_with_isrc(cookie_jar, "JPA602300025"))
     albums = []
     for minc_search_result in minc_search_results:
         print(minc_search_result)

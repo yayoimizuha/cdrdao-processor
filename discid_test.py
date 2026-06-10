@@ -8,6 +8,6 @@ import discid
 print(device := discid.get_default_device())
 print(info := discid.read(device, features=["mcn", "isrc"]))
 print(dir(info))
-print(info.freedb_id)
 print(info.mcn)
+print(info.toc_string)
 print(info.tracks[0].isrc)

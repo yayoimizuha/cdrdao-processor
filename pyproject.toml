@@ -13,5 +13,8 @@ dependencies = [
     "standard-aifc",
     "aiohttp",
     "pandas",
-    "discid"
+    "more-itertools",
+    "pandas-stubs",
+    "openpyxl",
+    "yt-dlp>=2026.3.17",
 ]
